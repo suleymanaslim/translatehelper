@@ -164,3 +164,27 @@ export async function exportPdf(document, layout) {
   const blob = await createPdf(document, layout);
   downloadFile(blob, `${safeFilename(document.title)}.pdf`, 'application/pdf');
 }
+
+export async function openPdfForPrinting(document, layout) {
+  // Keep the popup in the click gesture; use the PDF viewer rather than window.print in the sandboxed frame.
+  let viewer = null;
+  try { viewer = window.open('', '_blank'); if (viewer) viewer.opener = null; }
+  catch { /* Popups can be blocked by the embedding page or browser. */ }
+  try {
+    const blob = await createPdf(document, layout);
+    if (!viewer || viewer.closed) {
+      downloadFile(blob, `${safeFilename(document.title)}.pdf`, 'application/pdf');
+      return false;
+    }
+    const url = URL.createObjectURL(blob);
+    try { viewer.location.replace(url); }
+    catch {
+      viewer.close();
+      URL.revokeObjectURL(url);
+      downloadFile(blob, `${safeFilename(document.title)}.pdf`, 'application/pdf');
+      return false;
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return true;
+  } catch (error) { viewer?.close(); throw error; }
+}

@@ -17,6 +17,10 @@ Normal uzunluktaki cümle çiftleri PDF’de aynı sayfada tutulur. Tek bir cüm
 
 ## Geliştirme
 
+**JSON kopyala** çalışma yedeğini panoya kopyalar; **JSON yapıştır** metin olarak geri açar. Bu seçenekler başlangıç ekranında ve çeviri alanının **Dosya** menüsündedir. Mevcut çalışmanın üzerine yazmadan önce onay alınır; geçersiz JSON çalışmayı değiştirmez.
+
+**Yazdır**, PDF’yi ayrı sekmede açar. Tarayıcı sekme açılmasına izin vermiyorsa PDF indirilir; dosyayı açıp PDF görüntüleyicisinden yazdırabilirsiniz. Böylece uygulama çerçevesinin `window.print()` kısıtlamasına takılmaz.
+
 Node.js 22.12 veya üzeri:
 
 ```bash

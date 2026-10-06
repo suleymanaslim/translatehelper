@@ -4,7 +4,7 @@ import { Dialog, DocumentPreview, LANGUAGES, SegmentRow } from './components.jsx
 import { createSegments, segmentText, translatedText, wordCount } from './lib/segments.js';
 import { backupDocument, EMPTY_DOCUMENT, loadDocument, STORAGE_KEY, validateDocument } from './lib/storage.js';
 import { copyText, downloadFile, safeFilename } from './lib/download.js';
-import { exportPdf } from './lib/pdf.js';
+import { exportPdf, openPdfForPrinting } from './lib/pdf.js';
 
 const EXAMPLES = {
   en: 'Dr. Smith believes that learning a language is a journey, not a race. Small, consistent steps make a big difference! For example, you can translate a short text every day.\n\nWhat did you learn today? Write it down and revisit it tomorrow.',
@@ -22,6 +22,9 @@ export default function App() {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState('');
   const [confirmation, setConfirmation] = useState(null);
+  const [jsonOpen, setJsonOpen] = useState(false);
+  const [jsonInput, setJsonInput] = useState('');
+  const [jsonError, setJsonError] = useState('');
   const [toast, setToast] = useState(initial.error ? { message: initial.error, error: true } : null);
   const latest = useRef(document);
   const saved = useRef(initial.document);
@@ -154,12 +157,7 @@ export default function App() {
     notify('Çeviri metni indirildi.');
   }
 
-  async function importBackup(event) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    try {
-      const imported = validateDocument(JSON.parse(await file.text()));
+  function restoreBackup(imported) {
       const restore = () => {
         setDocument(imported); setView(imported.segments.length ? 'workspace' : 'input');
         setActiveId(imported.segments[0]?.id || null); setFocusMode(false); notify('JSON yedeği açıldı.');
@@ -168,7 +166,38 @@ export default function App() {
         body: 'Açacağınız JSON yedeği mevcut çalışmanın yerini alacak. Mevcut çalışmayı saklamak için önce yedeğini indirin.',
         label: 'Yedeği aç', action: restore });
       else restore();
+  }
+
+  async function importBackup(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      restoreBackup(validateDocument(JSON.parse(await file.text())));
     } catch (error) { notify(error instanceof SyntaxError ? 'JSON dosyası okunamadı. Geçerli bir yedek seçin.' : error.message, true); }
+  }
+
+  function openJsonPaste() { setJsonInput(''); setJsonError(''); setJsonOpen(true); }
+
+  function importPastedJson() {
+    try {
+      const imported = validateDocument(JSON.parse(jsonInput.trim().replace(/^\uFEFF/u, '')));
+      setJsonOpen(false);
+      restoreBackup(imported);
+    } catch (error) {
+      setJsonError(error instanceof SyntaxError ? 'JSON metni okunamadı. Kopyaladığınız yedeğin tamamını yapıştırın.' : error.message);
+    }
+  }
+
+  async function handlePrint() {
+    setPdfBusy(true);
+    setPdfError('');
+    try {
+      const opened = await openPdfForPrinting(document, document.pdfLayout);
+      setPdfOpen(false);
+      notify(opened ? 'PDF açıldı. PDF görüntüleyicisindeki yazdır düğmesini kullanın.' : 'PDF indirildi. Dosyayı açıp yazdırabilirsiniz.');
+    } catch (error) { setPdfError(error.message || 'PDF açılamadı. Lütfen tekrar deneyin.'); }
+    finally { setPdfBusy(false); }
   }
 
   async function handlePdf() {
@@ -237,7 +266,11 @@ export default function App() {
                 onChange={event => updateDocument({ options: { ...document.options, protectAbbreviations: event.target.checked } })} />Kısaltmaları koru</label>
             </div>
           </div>
-          <div className="input-actions"><button className="text-button muted-button" onClick={() => importRef.current.click()}><Upload size={16} />JSON yedeği aç</button>
+          <div className="input-actions"><div className="json-actions">
+            <button className="text-button muted-button" disabled={!document.rawText.trim() && !total} onClick={() => copy(backupDocument(document), 'JSON yedeği kopyalandı.')}><Copy size={15} />JSON kopyala</button>
+            <button className="text-button muted-button" onClick={openJsonPaste}><FileJson size={15} />JSON yapıştır</button>
+            <button className="text-button muted-button" onClick={() => importRef.current.click()}><Upload size={15} />Yedek dosyası aç</button>
+          </div>
             <div className="start-action"><span className="segment-preview-count">{previewParts.length ? `${previewParts.length} cümle hazır` : 'Metin ekleyerek başlayın'}</span>
               <button className="button primary" disabled={!document.rawText.trim()} onClick={startTranslating}>Çeviriye başla</button>
             </div>
@@ -258,6 +291,8 @@ export default function App() {
                   <div className="menu-popover">
                     <button disabled={!complete} onClick={event => { event.currentTarget.closest('details').open = false; downloadTxt(); }}><FileText size={16} />Çeviri metni (.txt)</button>
                     <button onClick={event => { event.currentTarget.closest('details').open = false; downloadBackup(); }}><FileJson size={16} />JSON yedeği indir</button>
+                    <button onClick={event => { event.currentTarget.closest('details').open = false; copy(backupDocument(document), 'JSON yedeği kopyalandı.'); }}><Copy size={16} />JSON kopyala</button>
+                    <button onClick={event => { event.currentTarget.closest('details').open = false; openJsonPaste(); }}><FileJson size={16} />JSON yapıştır</button>
                     <button onClick={event => { event.currentTarget.closest('details').open = false; importRef.current.click(); }}><Upload size={16} />JSON yedeği aç</button>
                   </div>
                 </details>
@@ -303,10 +338,22 @@ export default function App() {
         <DocumentPreview document={document} layout={document.pdfLayout} />
         {pdfError && <p className="pdf-error" role="alert"><CircleAlert size={16} />{pdfError}</p>}
         {complete < total && <p className="export-note"><CircleAlert size={15} />{total - complete} çeviri boş. {document.pdfLayout === 'target' ? 'Yalnızca yazdığınız çeviriler eklenecek.' : 'Boş çeviriler “—” ile gösterilecek.'}</p>}
-        <div className="dialog-footer"><button className="button secondary" disabled={pdfBusy || (document.pdfLayout === 'target' && !complete)} onClick={() => window.print()}><Printer size={16} />Yazdır</button>
+        <div className="dialog-footer"><button className="button secondary" disabled={pdfBusy || (document.pdfLayout === 'target' && !complete)} onClick={handlePrint}><Printer size={16} />Yazdır</button>
           <button className="button primary" disabled={pdfBusy || (document.pdfLayout === 'target' && !complete)} onClick={handlePdf}>
             <FileDown size={17} />{pdfBusy ? 'PDF hazırlanıyor…' : 'PDF indir'}
           </button>
+        </div>
+      </Dialog>}
+
+      {jsonOpen && <Dialog title="JSON yapıştır" onClose={() => setJsonOpen(false)} className="json-paste-dialog">
+        <p className="dialog-description">“JSON kopyala” ile aldığınız yedeği buraya yapıştırın.</p>
+        <label className="json-paste-label" htmlFor="json-backup-text">JSON metni</label>
+        <textarea id="json-backup-text" className="json-paste-textarea" value={jsonInput} autoFocus spellCheck={false}
+          placeholder={'{\n  "version": 1,\n  "title": "Çeviri çalışması",\n  "rawText": "…",\n  "sourceLanguage": "en",\n  "segments": […]\n}'}
+          onChange={event => { setJsonInput(event.target.value); setJsonError(''); }} aria-invalid={!!jsonError} aria-describedby={jsonError ? 'json-error' : undefined} />
+        {jsonError && <p id="json-error" className="pdf-error" role="alert"><CircleAlert size={16} />{jsonError}</p>}
+        <div className="dialog-footer"><button className="button secondary" onClick={() => setJsonOpen(false)}>Vazgeç</button>
+          <button className="button primary" disabled={!jsonInput.trim()} onClick={importPastedJson}>JSON’u aç</button>
         </div>
       </Dialog>}
 

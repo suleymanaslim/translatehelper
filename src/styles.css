@@ -84,6 +84,12 @@ input[type='checkbox'] { width: 15px; height: 15px; accent-color: var(--accent);
 .icon-button { background: transparent; border: 0; border-radius: 5px; width: 30px; height: 30px; display: inline-grid; place-items: center; flex: 0 0 auto; padding: 0; color: #9198aa; }
 .icon-button:hover { background: #eeecfe; color: var(--accent); }
 .input-actions { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 20px; }
+.json-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.json-paste-dialog { width: 650px; }
+.json-paste-label { display: block; margin-bottom: 8px; font-size: 13px; color: #667086; }
+.json-paste-textarea { display: block; width: 100%; min-height: 230px; max-height: 45dvh; overflow: auto; resize: vertical; border: 1px solid var(--border); border-radius: 7px; background: #fafbfe; padding: 13px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; line-height: 1.65; }
+.json-paste-textarea:focus { border-color: #aba5f1; }
+.json-paste-textarea::placeholder { color: #a3a8b7; }
 .start-action { display: flex; align-items: center; gap: 18px; }
 .start-action .button { min-height: 42px; padding-left: 22px; padding-right: 22px; font-size: 14px; }
 .segment-preview-count { font-size: 12px; color: #9097a9; }
@@ -245,6 +251,11 @@ summary::-webkit-details-marker { display: none; }
   .segmentation-label { flex-basis: 100%; font-size: 11.5px; }
   .segmentation-bar label { min-height: 22px; }
   .input-actions { align-items: flex-start; gap: 12px; }
+  .input-actions:has(.json-actions) { flex-wrap: wrap; }
+  .input-actions:has(.json-actions) .start-action { width: 100%; flex-direction: row; justify-content: space-between; align-items: center; }
+  .json-actions { gap: 5px 14px; }
+  .json-actions .text-button { font-size: 12px; min-height: 36px; }
+  .json-paste-textarea { font-size: 16px; }
   .input-actions > .text-button { font-size: 12px; padding-top: 12px; }
   .start-action { flex-direction: column-reverse; align-items: flex-end; gap: 9px; }
   .start-action .button { padding-left: 15px; padding-right: 15px; font-size: 13px; }
